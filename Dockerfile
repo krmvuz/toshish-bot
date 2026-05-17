@@ -1,7 +1,7 @@
-FROM node:24-slim
+FROM node:18-alpine
 
 # Native build tools required for better-sqlite3
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
