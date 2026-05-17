@@ -42935,7 +42935,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS employers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    telegram_id INTEGER NOT NULL REFERENCES profiles(telegram_id),
+    telegram_id INTEGER NOT NULL UNIQUE REFERENCES profiles(telegram_id),
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
     company_name TEXT NOT NULL,
@@ -42944,7 +42944,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS workers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    telegram_id INTEGER NOT NULL REFERENCES profiles(telegram_id),
+    telegram_id INTEGER NOT NULL UNIQUE REFERENCES profiles(telegram_id),
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
     age INTEGER NOT NULL,
@@ -42952,6 +42952,10 @@ db.exec(`
     districts TEXT NOT NULL,
     registered_at INTEGER NOT NULL DEFAULT (unixepoch())
   );
+
+  -- Ensure uniqueness on existing tables (safe to run multiple times)
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_employers_telegram_id ON employers(telegram_id);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_workers_telegram_id ON workers(telegram_id);
 
   CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42985,14 +42989,14 @@ var queries = {
     "SELECT * FROM employers WHERE telegram_id = ?"
   ),
   createEmployer: db.prepare(
-    "INSERT INTO employers (telegram_id, name, phone, company_name) VALUES (?, ?, ?, ?)"
+    "INSERT OR IGNORE INTO employers (telegram_id, name, phone, company_name) VALUES (?, ?, ?, ?)"
   ),
   // ─── Workers ───────────────────────────────────────────────────────────────
   getWorkerByTelegramId: db.prepare(
     "SELECT * FROM workers WHERE telegram_id = ?"
   ),
   createWorker: db.prepare(
-    "INSERT INTO workers (telegram_id, name, phone, age, categories, districts) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT OR IGNORE INTO workers (telegram_id, name, phone, age, categories, districts) VALUES (?, ?, ?, ?, ?, ?)"
   ),
   // ─── Jobs ──────────────────────────────────────────────────────────────────
   createJob: db.prepare(
@@ -43171,6 +43175,15 @@ var paymentConfirmKeyboard = (jobId) => import_telegraf.Markup.inlineKeyboard([
 var employerRegisterScene = new import_telegraf2.Scenes.WizardScene(
   "employer_register",
   async (ctx) => {
+    const existing = queries.getEmployerByTelegramId.get(ctx.from.id);
+    if (existing) {
+      await ctx.reply(
+        `\u{1F4BC} Xush kelibsiz, *${existing.name}*!
+\u{1F3E2} Kompaniya: ${existing.company_name}`,
+        { parse_mode: "Markdown", ...employerMenuKeyboard }
+      );
+      return ctx.scene.leave();
+    }
     await ctx.reply("\u{1F464} Ismingizni kiriting:");
     return ctx.wizard.next();
   },
@@ -43373,6 +43386,26 @@ var import_telegraf3 = __toESM(require_lib6(), 1);
 var workerRegisterScene = new import_telegraf3.Scenes.WizardScene(
   "worker_register",
   async (ctx) => {
+    const existing = queries.getWorkerByTelegramId.get(ctx.from.id);
+    if (existing) {
+      let categories = [];
+      let districts = [];
+      try {
+        categories = JSON.parse(existing.categories);
+      } catch {
+      }
+      try {
+        districts = JSON.parse(existing.districts);
+      } catch {
+      }
+      await ctx.reply(
+        `\u{1F477} Xush kelibsiz, *${existing.name}*!
+\u{1F4BC} ${categories.join(", ")}
+\u{1F4CD} ${districts.join(", ")}`,
+        { parse_mode: "Markdown", ...workerMenuKeyboard }
+      );
+      return ctx.scene.leave();
+    }
     await ctx.reply("\u{1F464} Ismingizni kiriting:");
     return ctx.wizard.next();
   },
