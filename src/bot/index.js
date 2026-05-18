@@ -42166,9 +42166,26 @@ Tugagandan so'ng \u2705 Tasdiqlash tugmasini bosing:`,
 \u{1F4BC} Kategoriyalar: ${selectedCategories.join(", ")}
 \u{1F4CD} Tumanlar: ${selectedDistricts.join(", ")}
 
-\u{1F514} Har kuni ertalab soat 09:00 da sizga mos vakansiyalar yuboriladi.`
+\u{1F514} Yangi vakansiya tasdiqlanganda darhol xabar olasiz.`
       );
       await ctx.reply("Asosiy menyu:", workerMenuKeyboard);
+      const ADMIN_ID = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
+      if (ADMIN_ID) {
+        try {
+          await ctx.telegram.sendMessage(
+            ADMIN_ID,
+            `\u{1F477} Yangi ishchi ro'yxatdan o'tdi!
+
+\u{1F464} Ism: ${name}
+\u{1F4DE} Telefon: ${phone}
+\u{1F382} Yosh: ${age}
+\u{1F4BC} Kasb: ${selectedCategories.join(", ")}
+\u{1F4CD} Tuman: ${selectedDistricts.join(", ")}`
+          );
+        } catch (e) {
+          logger.warn({ err: e }, "Failed to notify admin about new worker");
+        }
+      }
       return ctx.scene.leave();
     }
     if (data.startsWith("dist_")) {
